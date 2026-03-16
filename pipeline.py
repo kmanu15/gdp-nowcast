@@ -99,6 +99,16 @@ def run_backtest(start: str, end: str) -> pd.DataFrame:
 
             pred = bridge.predict(qtd_means)
 
+            dfm_nowcast = np.nan
+            try:
+                from models.dfm import DFMNowcaster
+                dfm = DFMNowcaster()
+                dfm.fit(simulated)
+                dfm_result = dfm.nowcast(simulated)
+                dfm_nowcast = dfm_result["nowcast"]
+            except Exception as e:
+                logger.warning(f"DFM failed for {eval_date.date()}: {e}")
+
             current_q_end = eval_date.to_period("Q").end_time
             mask = gdp_actual.index <= current_q_end + pd.DateOffset(months=1)
             actual_candidates = gdp_actual[mask]
@@ -108,8 +118,10 @@ def run_backtest(start: str, end: str) -> pd.DataFrame:
                 "eval_date": eval_date.date(),
                 "quarter": eval_date.to_period("Q").strftime("Q%q %Y"),
                 "nowcast_bridge": pred["nowcast"],
+                "nowcast_dfm": dfm_nowcast,
                 "actual": round(actual, 3) if not np.isnan(actual) else np.nan,
-                "error": round(pred["nowcast"] - actual, 3) if not np.isnan(actual) and not np.isnan(pred["nowcast"]) else np.nan,
+                "error_bridge": round(pred["nowcast"] - actual, 3) if not np.isnan(actual) and not np.isnan(pred["nowcast"]) else np.nan,
+                "error_dfm": round(dfm_nowcast - actual, 3) if not np.isnan(actual) and not np.isnan(dfm_nowcast) else np.nan,
             })
         except Exception as e:
             import traceback
@@ -117,9 +129,10 @@ def run_backtest(start: str, end: str) -> pd.DataFrame:
             logger.warning(traceback.format_exc())
 
     df = pd.DataFrame(records)
-    if len(df) > 0 and "error" in df.columns and df["error"].notna().any():
-        rmse = np.sqrt((df["error"] ** 2).mean())
-        logger.info(f"Backtest RMSE (bridge): {rmse:.3f}pp")
+    if len(df) > 0 and "error_bridge" in df.columns and df["error_bridge"].notna().any():
+        rmse_bridge = np.sqrt((df["error_bridge"] ** 2).mean())
+        rmse_dfm = np.sqrt((df["error_dfm"] ** 2).mean()) if df["error_dfm"].notna().any() else np.nan
+        logger.info(f"Backtest RMSE — Bridge: {rmse_bridge:.3f}pp | DFM: {rmse_dfm:.3f}pp")
     return df
 
 

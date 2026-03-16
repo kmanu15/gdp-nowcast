@@ -217,20 +217,32 @@ if show_backtest:
     bt_path = "output/backtest_results.csv"
     try:
         bt = pd.read_csv(bt_path)
-        bt["error"] = pd.to_numeric(bt["error"], errors="coerce")
-        rmse = np.sqrt((bt["error"] ** 2).mean())
-        mae = bt["error"].abs().mean()
+        bt["error_bridge"] = pd.to_numeric(bt["error_bridge"], errors="coerce")
+        bt["error_dfm"] = pd.to_numeric(bt["error_dfm"], errors="coerce")
+        rmse_bridge = np.sqrt((bt["error_bridge"] ** 2).mean())
+        rmse_dfm = np.sqrt((bt["error_dfm"] ** 2).mean())
 
-        c1, c2 = st.columns(2)
-        c1.metric("RMSE", f"{rmse:.2f}pp")
-        c2.metric("MAE", f"{mae:.2f}pp")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Bridge RMSE", f"{rmse_bridge:.2f}pp")
+        c2.metric("DFM RMSE", f"{rmse_dfm:.2f}pp")
+        c3.metric("Sample", "2005–2019")
 
         fig_bt = go.Figure()
-        fig_bt.add_trace(go.Scatter(x=bt["eval_date"], y=bt["actual"], name="Actual", line=dict(color="#1D9E75")))
-        fig_bt.add_trace(go.Scatter(x=bt["eval_date"], y=bt["nowcast_bridge"], name="Nowcast", line=dict(color="#534AB7", dash="dash")))
-        fig_bt.update_layout(height=280, margin=dict(l=0,r=0,t=10,b=0),
-                              plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+        fig_bt.add_trace(go.Scatter(x=bt["eval_date"], y=bt["actual"], name="Actual GDP", line=dict(color="#1D9E75", width=2)))
+        fig_bt.add_trace(go.Scatter(x=bt["eval_date"], y=bt["nowcast_bridge"], name="Bridge model", line=dict(color="#534AB7", dash="dash")))
+        fig_bt.add_trace(go.Scatter(x=bt["eval_date"], y=bt["nowcast_dfm"], name="DFM", line=dict(color="#D85A30", dash="dot")))
+        fig_bt.update_layout(
+            height=300,
+            margin=dict(l=0, r=0, t=10, b=0),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02),
+            yaxis_title="% QoQ annualized",
+        )
+        fig_bt.update_xaxes(showgrid=False)
+        fig_bt.update_yaxes(gridcolor="rgba(128,128,128,0.1)", zeroline=True, zerolinecolor="rgba(128,128,128,0.3)")
         st.plotly_chart(fig_bt, use_container_width=True)
         st.dataframe(bt.tail(12), use_container_width=True)
+
     except FileNotFoundError:
         st.info("Run `python pipeline.py --backtest` first to generate backtest results.")
