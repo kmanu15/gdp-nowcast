@@ -1,13 +1,13 @@
 """
 pipeline.py — Main orchestration script.
 
-Run this to execute the full nowcasting pipeline:
+Full nowcasting pipeline:
   1. Ingest latest data from FRED and save a vintage
   2. Fit the bridge model
   3. Fit the Dynamic Factor Model
   4. Generate a nowcast for the current quarter
   5. Run news decomposition vs. last vintage
-  6. Print a research-style summary
+  6. Print a summary
 
 Usage:
     python pipeline.py

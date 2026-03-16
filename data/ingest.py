@@ -3,7 +3,7 @@ data/ingest.py — FRED data ingestion with vintage tracking.
 
 Pulls all configured series from FRED, applies transformations,
 and saves a timestamped vintage snapshot so backtests can reconstruct
-the exact information set available on any past date.
+the information set available on any past date.
 """
 
 import os
