@@ -1,6 +1,6 @@
 # GDP Nowcasting Model
 
-Real-time estimates of U.S. GDP growth using mixed-frequency data and a dynamic factor model — replicating the methodology used by the NY Fed and major macro research desks.
+Real-time estimates of U.S. GDP growth using mixed-frequency data and a dynamic factor model — replicating the methodology used by the NY Fed.
 
 ## Overview
 
