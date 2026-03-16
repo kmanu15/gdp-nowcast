@@ -83,7 +83,6 @@ class DFMNowcaster:
         self.model = DynamicFactorMQ(
             data,
             factors=self.params["k_factors"],
-            factor_order=self.params["factor_order"],
             idiosyncratic_ar1=True,
         )
 
@@ -110,7 +109,14 @@ class DFMNowcaster:
         target_col_idx = list(panel.columns).index(TARGET_SERIES_ID)
         filtered_state = smoothed.smoothed_state
 
-        nowcast_val = float(self.result.fittedvalues[TARGET_SERIES_ID].iloc[-1])
+        fitted_raw = self.result.fittedvalues[TARGET_SERIES_ID].dropna()
+        gdp_actual = panel[TARGET_SERIES_ID].dropna()
+        gdp_mean = float(gdp_actual.mean())
+        gdp_std = float(gdp_actual.std())
+        fitted_rescaled = fitted_raw * gdp_std + gdp_mean
+        cutoff = fitted_rescaled.index[-1] - pd.DateOffset(months=3)
+        recent = fitted_rescaled.loc[fitted_rescaled.index >= cutoff]
+        nowcast_val = float(recent.mean()) if len(recent) > 0 else float(fitted_rescaled.iloc[-1])
 
         factors_df = pd.DataFrame(
             filtered_state[:self.params["k_factors"]].T,
