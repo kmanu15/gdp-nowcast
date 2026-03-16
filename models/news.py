@@ -2,8 +2,7 @@
 models/news.py — News decomposition engine.
 
 Computes how much each new data release moved the nowcast,
-and in which direction. This is the feature that makes the
-model feel like a real macro research tool.
+and in which direction.
 
 Methodology: Banbura, Giannone, Modugno & Reichlin (2013).
 "Now-casting and the real-time data flow."
