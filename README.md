@@ -2,6 +2,8 @@
 
 Real-time estimates of U.S. GDP growth using mixed-frequency data and a dynamic factor model — replicating the methodology used by the NY Fed.
 
+![GDP Nowcast Dashboard](preview.png)
+
 ## Overview
 
 This project builds a production-style nowcasting pipeline that ingests high-frequency economic releases, estimates current-quarter GDP growth before the official BEA advance release, and decomposes each revision into its contributing data surprises ("news").
