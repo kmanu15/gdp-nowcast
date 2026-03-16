@@ -72,7 +72,7 @@ streamlit run dashboard.py
 
 ## Methodology Notes
 
-**Ragged edge problem:** Monthly indicators are released on different lags. The model handles this via the Kalman filter's ability to work with missing observations at the end of the sample — the core technical challenge of real-time nowcasting.
+**Ragged edge problem:** Monthly indicators are released on different lags. The model handles this via the Kalman filter's ability to work with missing observations at the end of the sample.
 
 **Vintage discipline:** Every data pull is timestamped. Backtests only use data that would have been available on the evaluation date, preventing look-ahead bias.
 
