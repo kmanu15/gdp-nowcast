@@ -103,6 +103,7 @@ st.divider()
 st.subheader("Nowcast vs. actual GDP")
 
 gdp_actual = panel[TARGET_SERIES_ID].resample("QE").last().dropna()
+gdp_actual = gdp_actual[gdp_actual.index >= "2000-01-01"]
 
 fig = go.Figure()
 fig.add_trace(go.Bar(
@@ -205,9 +206,98 @@ for row in rows:
         )
         with col:
             st.caption(name)
+            transform = next((s.transform for s in INDICATORS if s.fred_id == ind_id), "none")
+            transform_labels = {
+                "none": "Level",
+                "log": "Log level",
+                "diff": "Month-over-month change",
+                "log_diff": "Log difference",
+                "pct_change": "% change month-over-month",
+                "yoy": "Year-over-year % change",
+            }
+            transform_label = transform_labels.get(transform, transform)
             st.metric("Latest", f"{last_val:.2f}", f"{delta:+.2f}")
             st.plotly_chart(fig_sm, use_container_width=True)
+            st.caption(f"_{transform_label}_")
 
+# ── News Decomposition ────────────────────────────────────────────────────────
+
+st.divider()
+st.subheader("News decomposition")
+st.caption("How much did each data release move the nowcast since the last vintage?")
+
+if st.button("Run news decomposition"):
+    from data.ingest import load_vintage
+    from models.news import compute_news, news_table, narrative_summary
+    import json
+    from pathlib import Path
+
+    index_path = Path("data/vintages/vintage_index.json")
+    if not index_path.exists():
+        st.warning("No vintages found. Run pipeline.py at least twice on different days.")
+    else:
+        index = json.loads(index_path.read_text())
+        dates = sorted(index.keys())
+
+        if len(dates) < 2:
+            st.warning("Need at least two vintages to compute news. Run pipeline.py again tomorrow.")
+        else:
+            with st.spinner("Computing news decomposition..."):
+                try:
+                    panel_before = load_vintage(dates[-2])
+                    panel_after = load_vintage(dates[-1])
+
+                    from models.bridge import BridgeModel, to_quarterly
+                    quarterly = to_quarterly(panel_before)
+                    bridge = BridgeModel()
+                    bridge.fit(quarterly)
+
+                    releases = compute_news(panel_before, panel_after, bridge)
+
+                    if not releases:
+                        st.info("No new data releases between the two most recent vintages.")
+                    else:
+                        nowcast_before = releases[0].nowcast_before
+                        nowcast_after = releases[0].nowcast_after
+                        revision = nowcast_after - nowcast_before
+
+                        col1, col2, col3 = st.columns(3)
+                        col1.metric("Nowcast before", f"{nowcast_before:+.2f}%")
+                        col2.metric("Nowcast after", f"{nowcast_after:+.2f}%")
+                        col3.metric("Total revision", f"{revision:+.2f}pp",
+                                   delta=f"{revision:+.2f}pp",
+                                   delta_color="normal")
+
+                        df_news = news_table(releases)
+                        non_total = df_news[df_news["Series"] != "TOTAL REVISION"]
+
+                        fig_news = go.Figure(go.Bar(
+                            x=non_total["Nowcast contribution (pp)"],
+                            y=non_total["Series"],
+                            orientation="h",
+                            marker_color=["#1D9E75" if v > 0 else "#D85A30"
+                                         for v in non_total["Nowcast contribution (pp)"]],
+                        ))
+                        fig_news.update_layout(
+                            height=max(200, len(non_total) * 44),
+                            margin=dict(l=0, r=0, t=10, b=0),
+                            xaxis_title="Contribution to nowcast revision (pp)",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                        )
+                        fig_news.update_xaxes(gridcolor="rgba(128,128,128,0.1)",
+                                             zeroline=True,
+                                             zerolinecolor="rgba(128,128,128,0.3)")
+                        fig_news.update_yaxes(showgrid=False)
+                        st.plotly_chart(fig_news, use_container_width=True)
+
+                        narrative = narrative_summary(releases, quarter)
+                        st.info(narrative)
+
+                        st.dataframe(df_news, use_container_width=True, hide_index=True)
+
+                except Exception as e:
+                    st.error(f"News decomposition failed: {e}")
 
 # ── Backtest ──────────────────────────────────────────────────────────────────
 
