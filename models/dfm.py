@@ -3,7 +3,6 @@ models/dfm.py — Dynamic Factor Model wrapper.
 
 Wraps statsmodels DynamicFactorMQ, which handles mixed-frequency
 data and the ragged edge natively via the Kalman filter.
-This is the methodologically rigorous core of the project.
 
 Reference: Banbura & Modugno (2014), "Maximum likelihood estimation
 of factor models on datasets with arbitrary pattern of missing data."
