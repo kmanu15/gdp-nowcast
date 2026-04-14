@@ -248,11 +248,11 @@ if st.button("Run news decomposition"):
                     panel_after = load_vintage(dates[-1])
 
                     from models.bridge import BridgeModel, to_quarterly
-                    quarterly = to_quarterly(panel_before)
-                    bridge = BridgeModel()
-                    bridge.fit(quarterly)
+                    quarterly_before = to_quarterly(panel_before)
+                    bridge_model = BridgeModel()
+                    bridge_model.fit(quarterly_before)
 
-                    releases = compute_news(panel_before, panel_after, bridge)
+                    releases = compute_news(panel_before, panel_after, bridge_model)
 
                     if not releases:
                         st.info("No new data releases between the two most recent vintages.")
@@ -297,7 +297,9 @@ if st.button("Run news decomposition"):
                         st.dataframe(df_news, use_container_width=True, hide_index=True)
 
                 except Exception as e:
+                    import traceback
                     st.error(f"News decomposition failed: {e}")
+                    st.code(traceback.format_exc())
 
 # ── Backtest ──────────────────────────────────────────────────────────────────
 

@@ -27,6 +27,17 @@ logger = logging.getLogger(__name__)
 SERIES_NAMES = {s.fred_id: s.name for s in INDICATORS}
 SERIES_GROUPS = {s.fred_id: s.group for s in INDICATORS}
 
+def _get_nowcast(model, panel: pd.DataFrame) -> dict:
+    if hasattr(model, "nowcast"):
+        # DFMNowcaster path
+        return model.nowcast(panel)
+    else:
+        # BridgeModel path
+        from models.bridge import to_quarterly, get_quarter_to_date_means
+        quarterly = to_quarterly(panel)
+        model.fit(quarterly)
+        qtd_means = get_quarter_to_date_means(panel, panel.index[-1])
+        return model.predict(qtd_means)
 
 @dataclass
 class Release:
@@ -62,8 +73,8 @@ def compute_news(
     Returns:
         List of Release objects, one per series with new data
     """
-    nowcast_before_result = model.nowcast(panel_before)
-    nowcast_after_result = model.nowcast(panel_after)
+    nowcast_before_result = _get_nowcast(model, panel_before)
+    nowcast_after_result = _get_nowcast(model, panel_after)
 
     nowcast_before = nowcast_before_result["nowcast"]
     nowcast_after = nowcast_after_result["nowcast"]
@@ -89,7 +100,7 @@ def compute_news(
 
         panel_minus_one = panel_after.copy()
         panel_minus_one.loc[last_after_idx, col] = np.nan
-        nowcast_minus_one = model.nowcast(panel_minus_one)["nowcast"]
+        nowcast_minus_one = _get_nowcast(model, panel_minus_one)["nowcast"]
 
         contribution = nowcast_after - nowcast_minus_one
 
