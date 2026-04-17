@@ -127,6 +127,31 @@ class DFMNowcaster:
             "nowcast": round(nowcast_val, 3),
             "factors": factors_df,
             "fitted": self.result.fittedvalues[TARGET_SERIES_ID],
+            "fitted_all": self.result.fittedvalues,
+        }
+
+    def nowcast_from_panel(self, panel: pd.DataFrame) -> dict:
+        """
+        Apply the fitted model to a new panel and extract nowcast.
+        Uses the applied result's fittedvalues, not the original fit.
+        """
+        if not self._fitted:
+            raise RuntimeError("Call .fit() before .nowcast_from_panel()")
+
+        applied = self.result.apply(panel, refit=False)
+
+        fitted_raw = applied.fittedvalues[TARGET_SERIES_ID].dropna()
+        gdp_actual = panel[TARGET_SERIES_ID].dropna()
+        gdp_mean = float(gdp_actual.mean())
+        gdp_std = float(gdp_actual.std())
+        fitted_rescaled = fitted_raw * gdp_std + gdp_mean
+        cutoff = fitted_rescaled.index[-1] - pd.DateOffset(months=3)
+        recent = fitted_rescaled.loc[fitted_rescaled.index >= cutoff]
+        nowcast_val = float(recent.mean()) if len(recent) > 0 else float(fitted_rescaled.iloc[-1])
+
+        return {
+            "nowcast": round(nowcast_val, 3),
+            "fitted_all": applied.fittedvalues,
         }
 
     def forecast_errors(self) -> pd.Series:

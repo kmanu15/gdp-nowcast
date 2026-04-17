@@ -28,16 +28,18 @@ SERIES_NAMES = {s.fred_id: s.name for s in INDICATORS}
 SERIES_GROUPS = {s.fred_id: s.group for s in INDICATORS}
 
 def _get_nowcast(model, panel: pd.DataFrame) -> dict:
-    if hasattr(model, "nowcast"):
-        # DFMNowcaster path
-        return model.nowcast(panel)
-    else:
-        # BridgeModel path
-        from models.bridge import to_quarterly, get_quarter_to_date_means
+    from models.dfm import DFMNowcaster
+    from models.bridge import BridgeModel, to_quarterly, get_quarter_to_date_means
+
+    if isinstance(model, DFMNowcaster):
+        return model.nowcast_from_panel(panel)
+    elif isinstance(model, BridgeModel):
         quarterly = to_quarterly(panel)
         model.fit(quarterly)
         qtd_means = get_quarter_to_date_means(panel, panel.index[-1])
         return model.predict(qtd_means)
+    else:
+        raise ValueError(f"Unknown model type: {type(model)}")
 
 @dataclass
 class Release:
@@ -102,14 +104,18 @@ def compute_news(
         panel_minus_one.loc[last_after_idx, col] = np.nan
         nowcast_minus_one = _get_nowcast(model, panel_minus_one)["nowcast"]
 
+        print(f"{col}: nowcast_after={nowcast_after}, nowcast_minus_one={nowcast_minus_one}, diff={nowcast_after - nowcast_minus_one}")
+
         contribution = nowcast_after - nowcast_minus_one
 
-        fitted_before = nowcast_before_result.get("fitted")
-        if fitted_before is not None and last_after_idx in fitted_before.index:
-            expectation = fitted_before.loc[last_after_idx]
+        fitted_all = nowcast_before_result.get("fitted_all")
+        if fitted_all is not None and col in fitted_all.columns and last_after_idx in fitted_all.index:
+            expectation = float(fitted_all[col].loc[last_after_idx])
+        elif fitted_all is not None and col in fitted_all.columns:
+            expectation = float(fitted_all[col].dropna().iloc[-1])
         else:
             prev_vals = panel_before[col].dropna()
-            expectation = prev_vals.iloc[-1] if len(prev_vals) > 0 else actual
+            expectation = float(prev_vals.iloc[-1]) if len(prev_vals) > 0 else actual
 
         releases.append(Release(
             date=release_date or last_after_idx,

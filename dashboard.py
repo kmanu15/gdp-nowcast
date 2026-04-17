@@ -36,20 +36,14 @@ st.sidebar.markdown("**Data source:** FRED (St. Louis Fed)  \n**Model:** Bridge 
 # ── Data loading ─────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=3600)
-def load_panel():
-    try:
-        from data.ingest import ingest
-        return ingest(save=True)
-    except Exception as e:
-        st.error(f"Data ingestion failed: {e}")
-        return None
-
-
-@st.cache_data(ttl=3600)
 def run_models(use_dfm_flag: bool):
     from pipeline import run_nowcast
-    panel = load_panel()
-    if panel is None:
+    from data.ingest import load_vintage
+    from datetime import date
+    try:
+        panel = load_vintage(date.today().isoformat())
+    except Exception as e:
+        st.error(f"Could not load vintage: {e}")
         return None
     return run_nowcast(panel, use_dfm=use_dfm_flag)
 
@@ -247,12 +241,11 @@ if st.button("Run news decomposition"):
                     panel_before = load_vintage(dates[-2])
                     panel_after = load_vintage(dates[-1])
 
-                    from models.bridge import BridgeModel, to_quarterly
-                    quarterly_before = to_quarterly(panel_before)
-                    bridge_model = BridgeModel()
-                    bridge_model.fit(quarterly_before)
+                    from models.dfm import DFMNowcaster
+                    dfm_model = DFMNowcaster()
+                    dfm_model.fit(panel_before)
 
-                    releases = compute_news(panel_before, panel_after, bridge_model)
+                    releases = compute_news(panel_before, panel_after, dfm_model)
 
                     if not releases:
                         st.info("No new data releases between the two most recent vintages.")
