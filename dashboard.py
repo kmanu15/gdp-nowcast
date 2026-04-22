@@ -241,11 +241,11 @@ if st.button("Run news decomposition"):
                     panel_before = load_vintage(dates[-2])
                     panel_after = load_vintage(dates[-1])
 
-                    from models.dfm import DFMNowcaster
-                    dfm_model = DFMNowcaster()
-                    dfm_model.fit(panel_before)
-
-                    releases = compute_news(panel_before, panel_after, dfm_model)
+                    if use_dfm and result.get("dfm_model"):
+                        model_for_news = result["dfm_model"]
+                    else:
+                        model_for_news = result["bridge_model"]
+                    releases = compute_news(panel_before, panel_after, model_for_news)
 
                     if not releases:
                         st.info("No new data releases between the two most recent vintages.")
@@ -278,9 +278,15 @@ if st.button("Run news decomposition"):
                             plot_bgcolor="rgba(0,0,0,0)",
                             paper_bgcolor="rgba(0,0,0,0)",
                         )
-                        fig_news.update_xaxes(gridcolor="rgba(128,128,128,0.1)",
-                                             zeroline=True,
-                                             zerolinecolor="rgba(128,128,128,0.3)")
+                        _min = non_total["Nowcast contribution (pp)"].min()
+                        _max = non_total["Nowcast contribution (pp)"].max()
+                        _pad = max(abs(_max - _min) * 0.15, 0.05)
+                        fig_news.update_xaxes(
+                            range=[_min - _pad, max(_max + _pad, 0.01)],
+                            gridcolor="rgba(128,128,128,0.1)",
+                            zeroline=True,
+                            zerolinecolor="rgba(128,128,128,0.3)"
+                        )
                         fig_news.update_yaxes(showgrid=False)
                         st.plotly_chart(fig_news, use_container_width=True)
 

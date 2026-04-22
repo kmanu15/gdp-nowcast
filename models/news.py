@@ -34,8 +34,6 @@ def _get_nowcast(model, panel: pd.DataFrame) -> dict:
     if isinstance(model, DFMNowcaster):
         return model.nowcast_from_panel(panel)
     elif isinstance(model, BridgeModel):
-        quarterly = to_quarterly(panel)
-        model.fit(quarterly)
         qtd_means = get_quarter_to_date_means(panel, panel.index[-1])
         return model.predict(qtd_means)
     else:
@@ -104,8 +102,6 @@ def compute_news(
         panel_minus_one.loc[last_after_idx, col] = np.nan
         nowcast_minus_one = _get_nowcast(model, panel_minus_one)["nowcast"]
 
-        print(f"{col}: nowcast_after={nowcast_after}, nowcast_minus_one={nowcast_minus_one}, diff={nowcast_after - nowcast_minus_one}")
-
         contribution = nowcast_after - nowcast_minus_one
 
         fitted_all = nowcast_before_result.get("fitted_all")
@@ -115,7 +111,14 @@ def compute_news(
             expectation = float(fitted_all[col].dropna().iloc[-1])
         else:
             prev_vals = panel_before[col].dropna()
-            expectation = float(prev_vals.iloc[-1]) if len(prev_vals) > 0 else actual
+            if len(prev_vals) >= 2:
+                mu = prev_vals.mean()
+                rho = np.clip(prev_vals.autocorr(lag=1) or 0.0, -0.95, 0.95)
+                expectation = float(mu + rho * (prev_vals.iloc[-1] - mu))
+            elif len(prev_vals) == 1:
+                expectation = float(prev_vals.iloc[-1])
+            else:
+                expectation = actual
 
         releases.append(Release(
             date=release_date or last_after_idx,
