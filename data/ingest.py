@@ -15,6 +15,8 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
+import time
+
 from config import INDICATORS, SeriesConfig, TransformCode, DATA_DIR, VINTAGE_DIR
 
 logger = logging.getLogger(__name__)
@@ -140,10 +142,17 @@ def ingest(save: bool = True) -> pd.DataFrame:
     series_dict = {}
 
     for config in INDICATORS:
-        try:
-            series_dict[config.fred_id] = fetch_series(fred, config)
-        except Exception as e:
-            logger.warning(f"Failed to fetch {config.fred_id}: {e}")
+        for attempt in range(3):  # retry up to 3 times
+            try:
+                series_dict[config.fred_id] = fetch_series(fred, config)
+                time.sleep(0.5)
+                break  # success, move to next series
+            except Exception as e:
+                if attempt < 2:
+                    logger.warning(f"Attempt {attempt+1} failed for {config.fred_id}: {e}. Retrying...")
+                    time.sleep(2)  # wait longer before retry
+                else:
+                    logger.warning(f"Failed to fetch {config.fred_id}: {e}")
 
     panel = build_panel(series_dict)
 
