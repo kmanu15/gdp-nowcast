@@ -222,7 +222,7 @@ st.caption("How much did each data release move the nowcast since the last vinta
 
 if st.button("Run news decomposition"):
     from data.ingest import load_vintage
-    from models.news import compute_news, news_table, narrative_summary
+    from models.news import get_news_decomposition, news_table, narrative_summary
     import json
     from pathlib import Path
 
@@ -245,10 +245,25 @@ if st.button("Run news decomposition"):
                         model_for_news = result["dfm_model"]
                     else:
                         model_for_news = result["bridge_model"]
-                    releases = compute_news(panel_before, panel_after, model_for_news)
+
+                    # ── Changed: get_news_decomposition instead of compute_news ──
+                    releases, is_cached, computed_at = get_news_decomposition(
+                        panel_before, panel_after, model_for_news
+                    )
+
+                    # ── Changed: show stale-data banner if using cache ──
+                    if is_cached and computed_at:
+                        st.info(
+                            f"ℹ️ No new data releases today. "
+                            f"Showing last decomposition from "
+                            f"**{computed_at.strftime('%d %b %Y')}**."
+                        )
 
                     if not releases:
-                        st.info("No new data releases between the two most recent vintages.")
+                        st.warning(
+                            "No news decomposition available yet. "
+                            "Run the pipeline with new data first."
+                        )
                     else:
                         nowcast_before = releases[0].nowcast_before
                         nowcast_after = releases[0].nowcast_after
@@ -257,19 +272,26 @@ if st.button("Run news decomposition"):
                         col1, col2, col3 = st.columns(3)
                         col1.metric("Nowcast before", f"{nowcast_before:+.2f}%")
                         col2.metric("Nowcast after", f"{nowcast_after:+.2f}%")
-                        col3.metric("Total revision", f"{revision:+.2f}pp",
-                                   delta=f"{revision:+.2f}pp",
-                                   delta_color="normal")
+                        col3.metric(
+                            "Total revision", f"{revision:+.2f}pp",
+                            delta=f"{revision:+.2f}pp",
+                            delta_color="normal",
+                        )
 
-                        df_news = news_table(releases)
+                        # ── Changed: news_table now takes is_cached ──
+                        df_news = news_table(releases, is_cached=is_cached)
+
+                        # ── Changed: column is now "Contribution (pp)" ──
                         non_total = df_news[df_news["Series"] != "TOTAL REVISION"]
 
                         fig_news = go.Figure(go.Bar(
-                            x=non_total["Nowcast contribution (pp)"],
+                            x=non_total["Contribution (pp)"],
                             y=non_total["Series"],
                             orientation="h",
-                            marker_color=["#1D9E75" if v > 0 else "#D85A30"
-                                         for v in non_total["Nowcast contribution (pp)"]],
+                            marker_color=[
+                                "#1D9E75" if v > 0 else "#D85A30"
+                                for v in non_total["Contribution (pp)"]
+                            ],
                         ))
                         fig_news.update_layout(
                             height=max(200, len(non_total) * 44),
@@ -278,20 +300,23 @@ if st.button("Run news decomposition"):
                             plot_bgcolor="rgba(0,0,0,0)",
                             paper_bgcolor="rgba(0,0,0,0)",
                         )
-                        _min = non_total["Nowcast contribution (pp)"].min()
-                        _max = non_total["Nowcast contribution (pp)"].max()
+                        _min = non_total["Contribution (pp)"].min()
+                        _max = non_total["Contribution (pp)"].max()
                         _pad = max(abs(_max - _min) * 0.15, 0.05)
                         fig_news.update_xaxes(
                             range=[_min - _pad, max(_max + _pad, 0.01)],
                             gridcolor="rgba(128,128,128,0.1)",
                             zeroline=True,
-                            zerolinecolor="rgba(128,128,128,0.3)"
+                            zerolinecolor="rgba(128,128,128,0.3)",
                         )
                         fig_news.update_yaxes(showgrid=False)
                         st.plotly_chart(fig_news, use_container_width=True)
 
-                        narrative = narrative_summary(releases, quarter)
-                        st.info(narrative)
+                        # ── Changed: narrative_summary now takes is_cached + computed_at ──
+                        narrative = narrative_summary(
+                            releases, quarter, is_cached, computed_at
+                        )
+                        st.markdown(narrative)
 
                         st.dataframe(df_news, use_container_width=True, hide_index=True)
 

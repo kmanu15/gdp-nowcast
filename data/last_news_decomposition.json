@@ -1,0 +1,50 @@
+{
+  "computed_at": "2026-06-04T20:41:02.544905",
+  "releases": [
+    {
+      "release_date": "2026-05-31T00:00:00",
+      "obs_date": "2026-05-31T00:00:00",
+      "series_id": "ICSA",
+      "series_name": "Initial jobless claims",
+      "actual": 12.2617,
+      "expectation": -1.4807,
+      "surprise": 13.7424,
+      "is_revision": true,
+      "nowcast_before": 2.817,
+      "nowcast_after": 2.8,
+      "contribution": -0.017,
+      "contribution_raw": 0.036,
+      "group": "labor"
+    },
+    {
+      "release_date": "2026-06-30T00:00:00",
+      "obs_date": "2026-06-30T00:00:00",
+      "series_id": "T10Y2Y",
+      "series_name": "10Y-2Y yield spread",
+      "actual": 0.415,
+      "expectation": -0.3997,
+      "surprise": 0.8147,
+      "is_revision": true,
+      "nowcast_before": 2.817,
+      "nowcast_after": 2.8,
+      "contribution": -0.0,
+      "contribution_raw": 0.0,
+      "group": "financial"
+    },
+    {
+      "release_date": "2026-06-30T00:00:00",
+      "obs_date": "2026-06-30T00:00:00",
+      "series_id": "BAMLH0A0HYM2",
+      "series_name": "HY credit spread (OAS)",
+      "actual": 2.7267,
+      "expectation": -0.6325,
+      "surprise": 3.3592,
+      "is_revision": true,
+      "nowcast_before": 2.817,
+      "nowcast_after": 2.8,
+      "contribution": -0.0,
+      "contribution_raw": 0.0,
+      "group": "financial"
+    }
+  ]
+}
