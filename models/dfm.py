@@ -19,11 +19,14 @@ from config import TARGET_SERIES_ID, INDICATOR_IDS, MODEL_PARAMS, INDICATORS
 logger = logging.getLogger(__name__)
 
 
-def build_dfm_input(panel: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+def build_dfm_input(panel: pd.DataFrame, min_obs: int = 24) -> tuple[pd.DataFrame, dict]:
     """
     Prepare the mixed-frequency panel for DynamicFactorMQ.
     - Monthly indicators: pass as-is
     - Quarterly target: statsmodels expects a specific column spec
+    - Drops columns without enough history in this window: DynamicFactorMQ
+      tolerates missing/ragged data, but a column with (near) zero
+      observations produces non-finite values during standardization.
 
     Returns (data, freq_map) where freq_map tells the model
     which columns are monthly vs quarterly.
@@ -33,8 +36,20 @@ def build_dfm_input(panel: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     cols = [c for c in panel.columns if c in INDICATOR_IDS + [TARGET_SERIES_ID]]
     data = panel[cols].copy()
 
+    valid_cols = []
+    for col in data.columns:
+        if col == TARGET_SERIES_ID:
+            valid_cols.append(col)
+            continue
+        n_obs = data[col].notna().sum()
+        if n_obs < min_obs:
+            logger.warning(f"Dropping {col} from DFM input: only {n_obs} obs")
+            continue
+        valid_cols.append(col)
+    data = data[valid_cols]
+
     column_info = {}
-    for col in cols:
+    for col in data.columns:
         f = freq_map.get(col, "M")
         if f in ("D", "W", "M"):
             column_info[col] = {"freq": "M"}
@@ -90,6 +105,7 @@ class DFMNowcaster:
             maxiter=self.params["em_iter"],
         )
         self._fitted = True
+        self.columns = list(data.columns)
         logger.info("DFM fitted successfully")
         return self
 
@@ -102,32 +118,28 @@ class DFMNowcaster:
         if not self._fitted:
             raise RuntimeError("Call .fit() before .nowcast()")
 
-        applied = self.result.apply(panel, refit=False)
+        panel_aligned = panel[self.columns]
+        applied = self.result.apply(panel_aligned, refit=False)
         smoothed = applied.smoother_results
 
-        target_col_idx = list(panel.columns).index(TARGET_SERIES_ID)
         filtered_state = smoothed.smoothed_state
 
-        fitted_raw = self.result.fittedvalues[TARGET_SERIES_ID].dropna()
-        gdp_actual = panel[TARGET_SERIES_ID].dropna()
-        gdp_mean = float(gdp_actual.mean())
-        gdp_std = float(gdp_actual.std())
-        fitted_rescaled = fitted_raw * gdp_std + gdp_mean
-        cutoff = fitted_rescaled.index[-1] - pd.DateOffset(months=3)
-        recent = fitted_rescaled.loc[fitted_rescaled.index >= cutoff]
-        nowcast_val = float(recent.mean()) if len(recent) > 0 else float(fitted_rescaled.iloc[-1])
+        predicted = applied.predict()[TARGET_SERIES_ID].dropna()
+        cutoff = predicted.index[-1] - pd.DateOffset(months=3)
+        recent = predicted.loc[predicted.index >= cutoff]
+        nowcast_val = float(recent.mean()) if len(recent) > 0 else float(predicted.iloc[-1])
 
         factors_df = pd.DataFrame(
             filtered_state[:self.params["k_factors"]].T,
-            index=panel.index,
+            index=panel_aligned.index,
             columns=[f"Factor_{i+1}" for i in range(self.params["k_factors"])],
         )
 
         return {
             "nowcast": round(nowcast_val, 3),
             "factors": factors_df,
-            "fitted": self.result.fittedvalues[TARGET_SERIES_ID],
-            "fitted_all": self.result.fittedvalues,
+            "fitted": predicted,
+            "fitted_all": applied.predict(),
         }
 
     def nowcast_from_panel(self, panel: pd.DataFrame) -> dict:
@@ -138,20 +150,17 @@ class DFMNowcaster:
         if not self._fitted:
             raise RuntimeError("Call .fit() before .nowcast_from_panel()")
 
-        applied = self.result.apply(panel, refit=False)
+        panel_aligned = panel[self.columns]
+        applied = self.result.apply(panel_aligned, refit=False)
 
-        fitted_raw = applied.fittedvalues[TARGET_SERIES_ID].dropna()
-        gdp_actual = panel[TARGET_SERIES_ID].dropna()
-        gdp_mean = float(gdp_actual.mean())
-        gdp_std = float(gdp_actual.std())
-        fitted_rescaled = fitted_raw * gdp_std + gdp_mean
-        cutoff = fitted_rescaled.index[-1] - pd.DateOffset(months=3)
-        recent = fitted_rescaled.loc[fitted_rescaled.index >= cutoff]
-        nowcast_val = float(recent.mean()) if len(recent) > 0 else float(fitted_rescaled.iloc[-1])
+        predicted = applied.predict()[TARGET_SERIES_ID].dropna()
+        cutoff = predicted.index[-1] - pd.DateOffset(months=3)
+        recent = predicted.loc[predicted.index >= cutoff]
+        nowcast_val = float(recent.mean()) if len(recent) > 0 else float(predicted.iloc[-1])
 
         return {
             "nowcast": round(nowcast_val, 3),
-            "fitted_all": applied.fittedvalues,
+            "fitted_all": predicted,
         }
 
     def forecast_errors(self) -> pd.Series:

@@ -14,5 +14,10 @@
   "2026-05-29": "data/vintages/vintage_2026-05-29.parquet",
   "2026-05-31": "data/vintages/vintage_2026-05-31.parquet",
   "2026-06-03": "data/vintages/vintage_2026-06-03.parquet",
-  "2026-06-04": "data/vintages/vintage_2026-06-04.parquet"
+  "2026-06-04": "data/vintages/vintage_2026-06-04.parquet",
+  "2026-06-06": "data/vintages/vintage_2026-06-06.parquet",
+  "2026-06-10": "data/vintages/vintage_2026-06-10.parquet",
+  "2026-06-15": "data/vintages/vintage_2026-06-15.parquet",
+  "2026-06-17": "data/vintages/vintage_2026-06-17.parquet",
+  "2026-07-30": "data/vintages/vintage_2026-07-30.parquet"
 }
