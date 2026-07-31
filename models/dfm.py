@@ -124,7 +124,8 @@ class DFMNowcaster:
 
         filtered_state = smoothed.smoothed_state
 
-        predicted = applied.predict()[TARGET_SERIES_ID].dropna()
+        predicted_all = applied.predict()
+        predicted = predicted_all[TARGET_SERIES_ID].dropna()
         cutoff = predicted.index[-1] - pd.DateOffset(months=3)
         recent = predicted.loc[predicted.index >= cutoff]
         nowcast_val = float(recent.mean()) if len(recent) > 0 else float(predicted.iloc[-1])
@@ -139,7 +140,7 @@ class DFMNowcaster:
             "nowcast": round(nowcast_val, 3),
             "factors": factors_df,
             "fitted": predicted,
-            "fitted_all": applied.predict(),
+            "fitted_all": predicted_all,
         }
 
     def nowcast_from_panel(self, panel: pd.DataFrame) -> dict:
@@ -153,14 +154,15 @@ class DFMNowcaster:
         panel_aligned = panel[self.columns]
         applied = self.result.apply(panel_aligned, refit=False)
 
-        predicted = applied.predict()[TARGET_SERIES_ID].dropna()
+        predicted_all = applied.predict()
+        predicted = predicted_all[TARGET_SERIES_ID].dropna()
         cutoff = predicted.index[-1] - pd.DateOffset(months=3)
         recent = predicted.loc[predicted.index >= cutoff]
         nowcast_val = float(recent.mean()) if len(recent) > 0 else float(predicted.iloc[-1])
 
         return {
             "nowcast": round(nowcast_val, 3),
-            "fitted_all": predicted,
+            "fitted_all": predicted_all,
         }
 
     def forecast_errors(self) -> pd.Series:

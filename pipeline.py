@@ -49,6 +49,7 @@ def run_nowcast(panel: pd.DataFrame, use_dfm: bool = True) -> dict:
     bridge = BridgeModel()
     bridge.fit(quarterly)
     qtd_means = get_quarter_to_date_means(panel, panel.index[-1])
+    print(qtd_means)
     bridge_result = bridge.predict(qtd_means)
 
     result = {
