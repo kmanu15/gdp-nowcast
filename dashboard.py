@@ -108,13 +108,14 @@ fig.add_trace(go.Bar(
 ))
 
 current_q_end = pd.Timestamp(eval_date).to_period("Q").end_time
-fig.add_trace(go.Scatter(
+fig.add_trace(go.Bar(
     x=[current_q_end], y=[bridge_val],
-    mode="markers+text",
     name="Bridge nowcast",
-    marker=dict(size=14, color="#534AB7", symbol="diamond"),
+    marker_color="#534AB7",
     text=[f"{bridge_val:+.1f}%"],
-    textposition="top center",
+    textfont=dict(size=10),
+    textposition="outside",
+    constraintext="none",
 ))
 
 fig.update_layout(
