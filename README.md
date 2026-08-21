@@ -48,6 +48,8 @@ gdp_nowcast/
 │   └── charts/         # Saved figures
 ├── notebooks/
 │   └── exploration.ipynb
+├── GDP AR(I)
+│   └── gdp_ar_forecast.ipynb
 ├── tests/
 ├── pipeline.py         # Main orchestration script
 ├── dashboard.py        # Streamlit app
